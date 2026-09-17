@@ -1,0 +1,7 @@
+cad,glucose NRMSE %,biomass NRMSE %
+ethanol only,14,170
+every 120 min,7,36
+every 60 min,6,28
+every 30 min,5,21
+every 15 min,5,15
+every 10 min,5,12
