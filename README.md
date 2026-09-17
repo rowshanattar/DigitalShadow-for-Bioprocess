@@ -1,4 +1,4 @@
-# A Digital Twin of a Baker's-Yeast Batch Bioreactor — Extended Kalman Filter for State Estimation and Fault Identification
+# A Digital Shadow of a Baker's-Yeast Batch Bioreactor — Extended Kalman Filter for State Estimation and Fault Identification
 
 Master's thesis, University of Rostock.
 Author: Rowshanak Hosseinzadehattar. 
