@@ -20,8 +20,8 @@ pH sensors worth buying?* — and finally (vi) invert the filter's own blindness
 
 ## 1. How to read this repository
 
-| # | Notebook | Question it answers | Source research notebook |
-|---|----------|---------------------|--------------------------|
+| # | Notebook | Question it answers 
+|---|----------|---------------------
 | 1 | `1_ekf_baseline_yd.ipynb` | Can we reproduce the YD 2020 EKF and its paper figures with our own ground-truth simulator? 
 | 2 | `2_hypotheses_observability.ipynb` | What did the EKF's own hypotheses (noise/drift robustness; observability of CO₂) reveal about its limits? 
 | 3 | `3_generalization.ipynb` | How far does an ethanol-only EKF transfer across different yeast cultivations, and when does a second sensor become necessary? 
@@ -95,8 +95,12 @@ integrated with a high-accuracy solver; the EKF sees only noisy ethanol samples)
 `[CITATION: Yousefi-Darani, Paquet-Durand & Hitzmann 2020 — original EKF, parameters, figures]`
 
 ---
-
-## 4. Notebook 3 — Generalization across literature models
+## 4. Notebook 2 - Test of model's limitation
+- **Hypothesis 1:** How would the sensor's noise affect the result?
+- **Hypothesis 2:** How would sensor's draft affect the results?
+- **Hypothesis 3:** Is CO2 observable form the ethanol's measurement?
+- 
+## 5. Notebook 3 — Generalization across literature models
 
 **Strategy (non-circular external validation):** instead of testing the EKF on the plant
 it was designed for, we test it against **nine independently-fitted literature yeast
@@ -109,7 +113,7 @@ only `G0` (initial sugar), `X0` (inoculum guess), run length, and noise scale. W
 deliberately **do not retune yields per plant** — a yield mismatch that breaks recovery is
 itself a result.
 
-### 4.1 The nine models + control
+### 5.1 The nine models + control
 
 | # | Tag | Paper | Organism / substrate | Stress on the EKF |
 |---|-----|-------|----------------------|-------------------|
@@ -135,14 +139,14 @@ use the universal Gay-Lussac value `Yge_g = 0.46`, `Ygx_g = 0.10`.
 
 ---
 
-## 5. Notebook 4 — Fault-injection digital twin
+## 6. Notebook 4 — Fault-injection digital twin
 
 This notebook extends the YD plant into a fault-diagnosis twin by adding three
 environmental dynamics — **temperature, pH, and dissolved oxygen** — each with a
 first-principles ODE, an actuator/controller, and a fault. 
 
 
-### 5.1 The environmental ODEs 
+### 6.1 The environmental ODEs 
 
 **Temperature — a stirred-tank energy balance** (textbook form, Doran 2013 Ch. 9)
 `[CITATION: Doran 2013, Bioprocess Engineering Principles, Ch. 9]`:
@@ -210,9 +214,8 @@ Sources: Van't Riet / Hrnčiřík & Kohout (2024); qO2_max from Sonnleitner & K�
 
 
 ## 7. Notebook 5 — Fault detection with a healthy digital shadow
-
-
-
+- **Innovation:** How would the result change if what the EKF believes does not match the reality?
+- **CUSUM:** the idea is to cumulate the innovations to detect faults.
 
 ---
 
@@ -263,7 +266,7 @@ aeration hypotheses become hard to separate.
 ---
 ## 9b. `probes.ipynb` — one probe at a time
 
-Notebook 7 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
+Notebook 8 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
 that rack up, because the instrumentation budget is spent per probe: it runs the same rig
 under **five measurement systems** — `E`, `E+T`, `E+pH`, `E+DO`, `E+all` — every channel at
 the same 5-min cadence, with each system carried through **both** stages (its own CUSUM
