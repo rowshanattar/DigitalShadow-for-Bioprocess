@@ -1,6 +1,6 @@
 # EKF-Based Digital Twin for Bioreactor State Estimation 
 
-A Python implementation of an Extended Kalman Filter (EKF) Digital Twin
+A Python implementation of an Extended Kalman Filter (EKF) Digital Shadow
 for baker's yeast batch cultivation, developed as part of a Master's thesis
 on predictive maintenance and root cause analysis in bioprocesses.
 
