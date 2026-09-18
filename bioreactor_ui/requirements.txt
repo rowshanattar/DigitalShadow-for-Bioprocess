@@ -1,0 +1,15 @@
+# Bioreactor Digital-Twin Simulator — runtime dependencies
+# Verified on Python 3.12. Versions are pinned with a compatible-release bound
+# (~=) for reproducibility; loosen to >= if you must share an environment.
+#
+#   pip install -r requirements.txt
+
+fastapi~=0.136        # web framework (ASGI)
+uvicorn[standard]~=0.35   # ASGI server + websockets/uvloop extras
+numpy~=1.26           # arrays / linear algebra
+scipy~=1.15           # solve_ivp ODE integration
+sympy~=1.14           # symbolic EKF Jacobian
+matplotlib~=3.9       # server-side PNG export (Agg backend)
+
+# Note: Plotly (front-end charts) is loaded from a CDN in index.html and is NOT
+# a Python dependency. See DOCUMENTATION.md §3 to vendor it for offline use.

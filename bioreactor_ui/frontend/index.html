@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bioreactor Digital Twin</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header>
+    <span class="dot"></span>
+    <h1>Bioreactor Digital Twin — EKF Simulator</h1>
+    <span class="sub">baker's yeast · Minifors 2 · local</span>
+  </header>
+
+  <div class="layout">
+    <!-- ── config sidebar ─────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="card acc" data-group="setup">
+        <div class="acc-head">Setup <span class="chev">▾</span></div>
+        <div class="acc-body">
+          <div class="field"><label>Cell line</label><select id="sel-cell"></select></div>
+          <div class="field"><label>Bioreactor</label><select id="sel-reactor"></select></div>
+        </div>
+      </div>
+
+      <div class="card acc" data-group="ekf">
+        <div class="acc-head">EKF <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-ekf"></div>
+        <div class="acc-body">
+          <div class="field">
+            <label>biomass NRMSE <span class="unit">EKF vs truth</span></label>
+            <output id="nrmse-X">—</output>
+          </div>
+          <div class="field">
+            <label>CUSUM <span class="unit">detector</span></label>
+            <output id="cusum-state" class="pill">—</output>
+          </div>
+          <div class="field">
+            <label>root cause <span class="unit">MMAE bank</span></label>
+            <output id="mmae-state" class="pill">—</output>
+          </div>
+        </div>
+      </div>
+
+      <div class="card acc collapsed" data-group="initial">
+        <div class="acc-head">Initial state <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-initial"></div>
+      </div>
+      <div class="card acc collapsed" data-group="kinetics">
+        <div class="acc-head">Kinetics &amp; yields <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-kinetics"></div>
+      </div>
+      <div class="card acc collapsed" data-group="thermal">
+        <div class="acc-head">Thermal &amp; Rosso-T <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-thermal"></div>
+      </div>
+      <div class="card acc collapsed" data-group="ph">
+        <div class="acc-head">pH &amp; pumps <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-ph"></div>
+      </div>
+      <div class="card acc collapsed" data-group="oxygen">
+        <div class="acc-head">Oxygen &amp; aeration <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-oxygen"></div>
+      </div>
+      <div class="card acc collapsed" data-group="sim">
+        <div class="acc-head">Run settings <span class="chev">▾</span></div>
+        <div class="acc-body" id="grp-sim"></div>
+      </div>
+
+      <div class="card acc" data-group="fault">
+        <div class="acc-head">Fault injection <span class="chev">▾</span></div>
+        <div class="acc-body">
+          <div class="cat-tabs" id="cat-tabs"></div>
+          <div id="fault-list"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── main content ───────────────────────────────── -->
+    <main class="content">
+      <div class="toolbar">
+        <button class="btn btn-run"  id="btn-run">▶ Run</button>
+        <button class="btn btn-stop" id="btn-stop" disabled>■ Stop</button>
+        <button class="btn btn-ghost" id="btn-reset">↺ Reset</button>
+        <button class="btn btn-ghost" id="btn-csv" disabled>⤓ CSV</button>
+        <button class="btn btn-ghost" id="btn-png" disabled>⤓ PNG</button>
+        <label class="switch"><input type="checkbox" id="cmp-healthy" checked>
+          <span class="slider"></span></label>
+        <span class="cmp-label">Compare to healthy</span>
+        <div class="chips" id="fault-chips"></div>
+        <div class="clock">t = <b id="clock">0.00</b> / <span id="tfinal">10.0</span> h</div>
+      </div>
+
+      <div class="grid" id="plots">
+        <div class="plot-card"><div class="plot" id="plot-X"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-E"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-G"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-T"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-pH"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-DO"></div></div>
+      </div>
+
+      <!-- Detector row — Design A only; hidden when the old design runs. -->
+      <div class="grid" id="detector">
+        <div class="plot-card"><div class="plot" id="plot-nu"></div></div>
+        <div class="plot-card"><div class="plot" id="plot-cusum"></div></div>
+      </div>
+
+      <!-- Root cause — appears once the CUSUM alarms. The detector above says
+           THAT something is wrong; this says WHICH fault, and shows its work. -->
+      <section class="rca" id="rca" hidden>
+        <div class="rca-head">
+          <h2>Root cause <span class="sub">MMAE filter bank</span></h2>
+          <span class="pill" id="rca-status">waiting for alarm</span>
+          <div class="mode-tabs" id="rca-modes">
+            <button data-mode="ethanol">ethanol only</button>
+            <button data-mode="probes">+ T/pH/DO probes</button>
+          </div>
+          <button class="btn btn-ghost" id="btn-diagnose" disabled>↻ Re-diagnose</button>
+        </div>
+        <div class="rca-verdict" id="rca-verdict"></div>
+        <div class="rca-ranks" id="rca-ranks"></div>
+        <div class="rca-note" id="rca-note"></div>
+
+        <div class="grid rca-plots">
+          <div class="plot-card"><div class="plot" id="plot-post"></div></div>
+          <div class="plot-card"><div class="plot" id="plot-hnu"></div></div>
+          <div class="plot-card"><div class="plot" id="plot-hE"></div></div>
+          <div class="plot-card">
+            <div class="chan-pick">
+              <select id="rca-channel">
+                <option value="T">T [°C]</option>
+                <option value="pH">pH</option>
+                <option value="DO">DO [% sat]</option>
+              </select>
+            </div>
+            <div class="plot" id="plot-hch"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -5,37 +5,54 @@ Author: Rowshanak Hosseinzadehattar.
 Supervisor: `Dr. rer. nat. Sebastian Bader`.
 
 This repository packages the modelling and estimation work behind the thesis into
-8 notebooks and one reference README. The scientific core is the
+8 notebooks, an interactive local simulator (`bioreactor_ui/`), and this README. The scientific core is the
 **ethanol-only Extended Kalman Filter (EKF)** of Yousefi-Darani et al. (2020)
 `[CITATION: Yousefi-Darani, Paquet-Durand & Hitzmann 2020]`, which we (i) reproduce,
 (ii) test against hypotheses, (iii) test against a panel of
 independent literature yeast models, (iv) extend into a fault-diagnosis digital shadow,
-(v) use to answer a concrete instrumentation question — *are the temperature and
-pH sensors worth buying?* — and finally (vi) invert the filter's own blindness into a
-**detector** that says *that* a fault happened, and (vii) a **hypothesis bank** that says
-*which* one.
+(v) invert the filter's own blindness into a **detector** that says *that* a fault
+happened, (vi) add a **hypothesis bank** that says *which* one, and (vii) use the whole rig
+to answer a concrete instrumentation question — *are the temperature, pH and DO probes
+worth buying?*
 
 
 ---
 
 ## 1. How to read this repository
 
-| # | Notebook | Question it answers | Source research notebook |
-|---|----------|---------------------|--------------------------|
-| 1 | `1_ekf_baseline_yd.ipynb` | Can we reproduce the YD 2020 EKF and its paper figures with our own ground-truth simulator? 
-| 2 | `2_hypotheses_observability.ipynb` | What did the EKF's own hypotheses (noise/drift robustness; observability of CO₂) reveal about its limits? 
-| 3 | `3_generalization.ipynb` | How far does an ethanol-only EKF transfer across different yeast cultivations, and when does a second sensor become necessary? 
-| 4 | `4_fault_injection.ipynb` | How does the shadow behaive in presence of faults (heater, leak, pH-pump, aeration)? 
-| 5 | `5_sensor_value_TpH.ipynb` | Are the temperature and pH sensors worth buying for state estimation? 
-| 6 | `6_fault_detection.ipynb` | Can the EKF detect an actuator fault at all? 
-| 7 | `7_mmae_fault_isolation.ipynb` | Given an alarm, *which* fault caused it? 
-| 8 | `8_probes.ipynb` | Which *single* probe pays for itself — T, pH or DO — for detection and for isolation? 
+| # | Notebook | Question it answers |
+|---|----------|---------------------|
+| 1 | `1_ekf_baseline_yd.ipynb` | Can we reproduce the YD 2020 EKF and its paper figures with our own ground-truth simulator? |
+| 2 | `2_hypotheses_observability.ipynb` | What do the EKF's own hypotheses (noise/drift robustness; observability of CO₂) reveal about its limits? |
+| 3 | `3_generalization.ipynb` | How far does an ethanol-only EKF transfer across different yeast cultivations, and when does a second sensor become necessary? |
+| 4 | `4_fault_injection.ipynb` | How does the shadow behave in the presence of faults (heater, leak, pH-pump, aeration)? |
+| 5 | `5_fault_detection.ipynb` | Can a healthy digital shadow detect an actuator fault at all — and how soon? |
+| 6 | `6_mmae_fault_isolation.ipynb` | Given an alarm, *which* fault caused it? |
+| 7 | `7_evaluation.ipynb` | How fast is the alarm, and how fast does the diagnosis settle? |
+| 8 | `8_probes.ipynb` | Which *single* probe pays for itself — T, pH or DO — for detection and for isolation? |
 
-- `data/` — all ground-truth and result CSVs the notebooks read.
+Run them in order: each notebook writes the CSVs the next one reads.
+`ekf_bioreactor.ipynb` is the original single-file prototype of the YD filter,
+kept for reference; its content is superseded by notebook 1.
+
+- `data/` — all ground-truth and result CSVs the notebooks read and write.
 - `figures/` — final figures reproduced by the notebooks.
+- `bioreactor_ui/` — an interactive local web app that runs the same plant, EKF,
+  CUSUM detector and MMAE bank live in the browser (see §11).
+- `Thesis/`, `Presentation/` — the written thesis and the defence deck.
 
 
-**Dependencies:** Python ≥ 3.10, `numpy`, `scipy`, `sympy`, `matplotlib`, `pandas`.
+**Dependencies:** Python ≥ 3.10 with `numpy`, `scipy`, `sympy`, `matplotlib`, `pandas`
+and `jupyterlab`. A quick start:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install numpy scipy sympy matplotlib pandas jupyterlab
+jupyter lab
+```
+
+Everything runs on a laptop CPU; no data leaves your machine and no service
+credentials are needed anywhere in this repository.
 
 ---
 
@@ -96,7 +113,42 @@ integrated with a high-accuracy solver; the EKF sees only noisy ethanol samples)
 
 ---
 
-## 4. Notebook 3 — Generalization across literature models
+## 4. Notebook 2 — Hypotheses and observability limits
+
+The stress tests that motivate every downstream choice. The baseline filter of §3 works;
+this notebook asks *where it stops working*, and the answers set the scope of the rest of
+the thesis.
+
+- **H1a — sensor-noise robustness.** Ethanol noise `σ_E` is swept upward and the state
+  RMSEP tracked. The filter degrades gracefully rather than diverging, but the augmented
+  parameters `µmax_G`/`µmax_E` blur first: with one channel, noise is spent on the states
+  before the kinetics. Output: `figures/H1_noise_robustness.png`.
+- **H1b — the Kalman gain.** Comparing gain trajectories shows *when* the filter is
+  actually learning: the gain on `µmax_E` is non-trivial only inside the ethanol-consumption
+  window, which is the mechanism behind the `µmax_G` bias reported in §3.
+  Output: `figures/H1b_kalman_gain_comparison.png`.
+- **H2 — sensor-drift robustness.** A constant, a ramp and a growing bias are injected on
+  the ethanol channel at three drift rates. A drift is, by construction, indistinguishable
+  from a slow change in kinetics on a single channel: the filter absorbs it into the
+  augmented states rather than flagging it. Outputs: `figures/H2a_residuals.png`,
+  `figures/H2b_growing_noise.png`, `figures/H2_rmsep_all.png`.
+- **H3 — observability with CO₂.** A CO₂ mass balance is added as a sixth state and a second
+  measurement, derived from the existing yields by carbon balance (no new fitted parameter).
+  Adding CO₂ measurably shrinks the covariance on the glucose-phase parameters — the
+  observability gap of §3 is a *measurement* gap, not a model defect.
+  Outputs: `figures/H1_CO2_ODE_vs_EKF.png`, `figures/H1_CO2_observability.png`,
+  `figures/H1_CO2_reduction_all_states.png`, `figures/H3_CO2_Pmatrix.png`.
+
+**Why this matters downstream.** H2 is the hinge of the whole thesis: an ethanol-only
+filter cannot tell a sensor problem from a process problem, because it has nothing to
+contradict itself with. Notebooks 4–8 turn that blindness into a method — hold the model
+*healthy* and read the contradiction as the fault signal.
+
+`[CITATION: Rosso 1993; Rosso et al. 1995]` `[CITATION: Bar-Shalom, Li & Kirubarajan 2001]`
+
+---
+
+## 5. Notebook 3 — Generalization across literature models
 
 **Strategy (non-circular external validation):** instead of testing the EKF on the plant
 it was designed for, we test it against **nine independently-fitted literature yeast
@@ -109,7 +161,7 @@ only `G0` (initial sugar), `X0` (inoculum guess), run length, and noise scale. W
 deliberately **do not retune yields per plant** — a yield mismatch that breaks recovery is
 itself a result.
 
-### 4.1 The nine models + control
+### 5.1 The nine models + control
 
 | # | Tag | Paper | Organism / substrate | Stress on the EKF |
 |---|-----|-------|----------------------|-------------------|
@@ -135,14 +187,14 @@ use the universal Gay-Lussac value `Yge_g = 0.46`, `Ygx_g = 0.10`.
 
 ---
 
-## 5. Notebook 4 — Fault-injection digital twin
+## 6. Notebook 4 — Fault-injection digital twin
 
 This notebook extends the YD plant into a fault-diagnosis twin by adding three
 environmental dynamics — **temperature, pH, and dissolved oxygen** — each with a
 first-principles ODE, an actuator/controller, and a fault. 
 
 
-### 5.1 The environmental ODEs 
+### 6.1 The environmental ODEs 
 
 **Temperature — a stirred-tank energy balance** (textbook form, Doran 2013 Ch. 9)
 `[CITATION: Doran 2013, Bioprocess Engineering Principles, Ch. 9]`:
@@ -211,8 +263,59 @@ Sources: Van't Riet / Hrnčiřík & Kohout (2024); qO2_max from Sonnleitner & K�
 
 ## 7. Notebook 5 — Fault detection with a healthy digital shadow
 
+**The idea.** Build the EKF as a *healthy digital shadow*: it integrates `T`, pH and DO
+from their **healthy** ODEs inside `predict` — healthy heater, healthy pH-PI pumps,
+Van't Riet `kLa` — and the real environment is **never fed back in**. Ethanol is still the
+only correction. So the shadow is always simulating the reactor *as it would have run if
+nothing had broken*, and the gap between it and reality is the fault signal.
 
+### 7.1 The rig
 
+| stage | how |
+|---|---|
+| ground truth | 8-state RHS (`X, G, E, µmax_G, µmax_E, T, pH, DO`), RK4, PI pH pumps on a 2 s inner tick, faults applied at the actuator |
+| shadow | the *same* RHS with an empty fault list — healthy by construction, not by a second copy of the equations |
+| correction | ethanol only, 5-min cadence, Joseph-form update with a PSD-safe covariance step |
+| detector | two-sided CUSUM on the normalized innovation `z = ν/√S` |
+
+Keeping ground truth and shadow on one code path is deliberate: "the EKF predicts healthy
+dynamics" is then true by construction and cannot drift out of sync with the plant.
+
+### 7.2 The detector
+
+The innovation is whitened, `z = ν/√S`, so a healthy run gives `z ∼ N(0,1)` regardless of
+operating point, and one threshold pair works for every scenario:
+
+```
+S⁺ = max(0, S⁺ + z − k)          # drift up
+S⁻ = max(0, S⁻ − z − k)          # drift down
+alarm when max(S⁺, S⁻) > h
+```
+
+`k` is the slack (half the smallest shift worth detecting) and `h` the alarm bar; §7b of
+the notebook derives both from the healthy false-alarm rate rather than by eye. The
+detector carries **two floats of state and no history** — exactly what would run on the rig.
+
+### 7.3 What it finds
+
+Four fault scenarios (heater, acid pump, base pump, aeration) are run against the shadow.
+On ethanol alone, a fault is visible only once it has bent the *kinetics* — which is slow,
+and for the acid-pump-dead case never happens at all, because that fault leaves the state
+trajectory identical to healthy. Adding a **pH** probe as a monitor catches the pump
+faults ethanol misses; a **temperature** probe is faster on heater faults and catches the
+transient blip. Crucially the probes are used as monitors only — never corrected back into
+the shadow — so each residual stays a clean fault signal instead of being absorbed.
+
+**Conclusion for the instrumentation question:** for *state estimation* in healthy
+operation the T and pH sensors buy little; for *fault detection* they are the difference
+between an alarm in minutes and no alarm at all. §9–§10 put numbers on that.
+
+**Outputs:** `figures/fault_detection_scenarios.png`,
+`figures/residuals_healthy_vs_acid_stuck.png`,
+`figures/residuals_healthy_vs_heater_fault.png`,
+`figures/sensor_T_study.png`, `figures/sensor_pH_study.png`.
+
+`[CITATION: Page 1954]` `[CITATION: Isermann 2006]`
 
 ---
 
@@ -261,7 +364,7 @@ aeration hypotheses become hard to separate.
 `evaluation_{latency,cusum_runs,mmae_windows}.csv`.
 
 ---
-## 9b. `probes.ipynb` — one probe at a time
+## 10. Notebook 8 — `probes.ipynb`: one probe at a time
 
 Notebook 7 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
 that rack up, because the instrumentation budget is spent per probe: it runs the same rig
@@ -301,9 +404,38 @@ it owns rather than measuring anything about the system.
 `data/probes_{alarm_delay,verdict_delay,margin_nats,evidence_by_channel}.csv`.
 
 ---
-## 10. References (to be completed)
 
-Fill in full bibliographic entries; the `[CITATION: …]` markers above indicate where each is used.
+## 11. The interactive simulator — `bioreactor_ui/`
+
+Everything above runs offline in notebooks. `bioreactor_ui/` is the same physics wired
+into a **local web app** so the rig can be driven live: set any parameter, watch the
+curves grow in real time (1 simulated hour ≈ 5 s), overlay the EKF estimate and its ±σ
+band, **break the reactor mid-run**, and watch the CUSUM alarm and the MMAE bank name the
+cause — then download the run as CSV and PNG.
+
+```bash
+cd bioreactor_ui
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app
+# open http://localhost:8000
+```
+
+The backend is a FastAPI app streaming frames over a WebSocket; the physics, EKF, CUSUM
+and MMAE bank in `backend/` are ported cell-by-cell from notebooks 4–6, so the app and the
+thesis cannot disagree. See `bioreactor_ui/README.md` for the walkthrough and
+`bioreactor_ui/DOCUMENTATION.md` for the module-by-module reference.
+
+**Scope note:** it is a local research tool. `uvicorn` binds `127.0.0.1` by default and
+there is no authentication, rate limiting or validation of the simulation config beyond the
+physics guards — deliberately, because nothing but your own browser is meant to reach it.
+Do not bind it to a public interface or put it on a shared network as-is.
+
+---
+## 12. References
+
+Short-form entries; the `[CITATION: …]` markers above indicate where each is used. Full
+bibliographic details are in the thesis (`Thesis/MasterThesis.pdf`).
 
 - `[CITATION: Yousefi-Darani, Paquet-Durand & Hitzmann (2020)]` — original ethanol-only EKF, YD biokinetic parameters, initial/operating conditions, reproduced figures.
 - `[CITATION: Rosso (1993); Rosso et al. (1995)]` — cardinal-temperature (and cardinal-pH) growth modifier.
@@ -322,3 +454,18 @@ Fill in full bibliographic entries; the `[CITATION: …]` markers above indicate
 
 ---
 
+## 13. Licence and citation
+
+The code and notebooks in this repository are released under the MIT Licence (see
+`LICENSE`). The thesis text and the defence deck under `Thesis/` and `Presentation/` are
+the author's own work and are **not** covered by that licence — please cite rather than
+reuse them.
+
+The literature models reproduced in notebook 3 and the parameter sets throughout remain
+the property of their original authors; every one is cited at the point of use in §12.
+
+```
+Hosseinzadehattar, R. (2026). A Digital Twin of a Baker's-Yeast Batch Bioreactor:
+Extended Kalman Filter for State Estimation and Fault Identification.
+Master's thesis, University of Rostock.
+```
