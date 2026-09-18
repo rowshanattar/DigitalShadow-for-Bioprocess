@@ -1,4 +1,4 @@
-# A Digital Twin of a Baker's-Yeast Batch Bioreactor — Extended Kalman Filter for State Estimation and Fault Identification
+# A Digital Shadow of a Baker's-Yeast Batch Bioreactor — Extended Kalman Filter for State Estimation and Fault Identification
 
 Master's thesis, University of Rostock.
 Author: Rowshanak Hosseinzadehattar. 
@@ -114,6 +114,9 @@ integrated with a high-accuracy solver; the EKF sees only noisy ethanol samples)
 ---
 
 ## 4. Notebook 2 — Hypotheses and observability limits
+
+**The three questions:** how does sensor *noise* affect the estimate? how does sensor
+*drift*? and is CO₂ observable from the ethanol measurement alone?
 
 The stress tests that motivate every downstream choice. The baseline filter of §3 works;
 this notebook asks *where it stops working*, and the answers set the scope of the rest of
@@ -263,6 +266,10 @@ Sources: Van't Riet / Hrnčiřík & Kohout (2024); qO2_max from Sonnleitner & K�
 
 ## 7. Notebook 5 — Fault detection with a healthy digital shadow
 
+**The two questions:** what happens when what the EKF *believes* stops matching reality
+(the **innovation**), and what do you get by *accumulating* those innovations (the
+**CUSUM**)?
+
 **The idea.** Build the EKF as a *healthy digital shadow*: it integrates `T`, pH and DO
 from their **healthy** ODEs inside `predict` — healthy heater, healthy pH-PI pumps,
 Van't Riet `kLa` — and the real environment is **never fed back in**. Ethanol is still the
@@ -366,7 +373,7 @@ aeration hypotheses become hard to separate.
 ---
 ## 10. Notebook 8 — `probes.ipynb`: one probe at a time
 
-Notebook 7 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
+Notebook 8 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
 that rack up, because the instrumentation budget is spent per probe: it runs the same rig
 under **five measurement systems** — `E`, `E+T`, `E+pH`, `E+DO`, `E+all` — every channel at
 the same 5-min cadence, with each system carried through **both** stages (its own CUSUM
