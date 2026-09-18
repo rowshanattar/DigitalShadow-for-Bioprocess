@@ -373,7 +373,7 @@ aeration hypotheses become hard to separate.
 ---
 ## 10. Notebook 8 — `probes.ipynb`: one probe at a time
 
-Notebook 8 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
+Notebook 7 compares ethanol alone against the whole T/pH/DO rack. `probes.ipynb` splits
 that rack up, because the instrumentation budget is spent per probe: it runs the same rig
 under **five measurement systems** — `E`, `E+T`, `E+pH`, `E+DO`, `E+all` — every channel at
 the same 5-min cadence, with each system carried through **both** stages (its own CUSUM
